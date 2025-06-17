@@ -8,13 +8,16 @@ import { CalendarView } from '@/components/emoji-planner/calendar-view';
 import { EmojiSummary } from '@/components/emoji-planner/emoji-summary';
 import { EventItem } from '@/components/emoji-planner/event-item';
 import { ThemeSwitcher } from '@/components/emoji-planner/theme-switcher';
+import { WeeklyCalendarView } from '@/components/emoji-planner/weekly-calendar-view'; // Added
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { format, isSameDay } from 'date-fns';
-import { PlusCircle, Smile } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Added
+import { format, isSameDay, startOfWeek } from 'date-fns';
+import { PlusCircle, Smile, CalendarDays, CalendarWeek } from 'lucide-react'; // Added icons
 import { useToast } from "@/hooks/use-toast";
 
 const EVENTS_STORAGE_KEY = 'emoji-planner-events';
+type ViewMode = "month" | "week";
 
 export default function EmojiPlannerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -22,9 +25,10 @@ export default function EmojiPlannerPage() {
   const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
 
   useEffect(() => {
-    setIsClient(true); // Indicate client-side rendering is active
+    setIsClient(true);
     try {
       const storedEvents = localStorage.getItem(EVENTS_STORAGE_KEY);
       if (storedEvents) {
@@ -44,7 +48,7 @@ export default function EmojiPlannerPage() {
   }, [toast]);
 
   useEffect(() => {
-    if(isClient) { // Only run on client after initial hydration
+    if(isClient) { 
       try {
         localStorage.setItem(EVENTS_STORAGE_KEY, JSON.stringify(events));
       } catch (error) {
@@ -62,27 +66,36 @@ export default function EmojiPlannerPage() {
     const newEventWithId: CalendarEvent = { ...newEventData, id: crypto.randomUUID() };
     setEvents(prevEvents => [...prevEvents, newEventWithId].sort((a,b) => a.date.getTime() - b.date.getTime()));
     setIsAddEventDialogOpen(false);
-    toast({
-      title: "Event Added",
-      description: `"${newEventData.title}" scheduled successfully.`,
-    });
-  }, [toast]);
+    // Do not use toast for simple confirmations as per guidelines.
+    // toast({
+    //   title: "Event Added",
+    //   description: `"${newEventData.title}" scheduled successfully.`,
+    // });
+  }, []);
 
   const handleDeleteEvent = useCallback((eventId: string) => {
     setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
-    toast({
-      title: "Event Deleted",
-      description: "The event has been removed.",
-    });
-  }, [toast]);
-
-  const handleDateSelectForCalendar = useCallback((date: Date | undefined) => {
-    setSelectedDate(date);
+    // Do not use toast for simple confirmations.
+    // toast({
+    //   title: "Event Deleted",
+    //   description: "The event has been removed.",
+    // });
   }, []);
   
   const handleOpenAddEventDialog = (date?: Date) => {
     setSelectedDate(date || new Date());
     setIsAddEventDialogOpen(true);
+  };
+
+  const handleWeekChangeFromWeeklyView = (newWeekStartDate: Date) => {
+    // Update selectedDate to keep the "Events for {selectedDate}" card and summary relevant
+    // For simplicity, set it to the start of the week.
+    // Or, if selectedDate is already in the newWeek, keep it.
+    const currentSelectedIsInNewWeek = selectedDate && 
+      isSameDay(startOfWeek(selectedDate, {weekStartsOn: 1}), newWeekStartDate);
+    if (!currentSelectedIsInNewWeek) {
+      setSelectedDate(newWeekStartDate);
+    }
   };
 
   const eventsForSelectedDate = selectedDate && isClient
@@ -114,21 +127,41 @@ export default function EmojiPlannerPage() {
       </header>
 
       <main className="flex-1 container mx-auto py-6 px-4 md:py-8">
+        <div className="mb-6">
+          <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="w-full md:w-auto">
+            <TabsList className="grid w-full grid-cols-2 md:w-[200px]">
+              <TabsTrigger value="month"><CalendarDays className="mr-1 h-4 w-4" />Month</TabsTrigger>
+              <TabsTrigger value="week"><CalendarWeek className="mr-1 h-4 w-4" />Week</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 space-y-6 lg:space-y-0">
           
           <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-lg overflow-hidden">
-              <CardContent className="p-2 md:p-4">
-                <CalendarView 
-                  events={events} 
-                  onDateSelect={handleDateSelectForCalendar} 
-                  selectedDate={selectedDate}
-                  onSelectedDateChange={setSelectedDate}
-                />
-              </CardContent>
-            </Card>
+            {viewMode === 'month' && (
+              <Card className="shadow-lg overflow-hidden">
+                <CardContent className="p-2 md:p-4">
+                  <CalendarView 
+                    events={events} 
+                    onDateSelect={setSelectedDate} 
+                    selectedDate={selectedDate}
+                    onSelectedDateChange={setSelectedDate}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-            {selectedDate && (
+            {viewMode === 'week' && selectedDate && (
+               <WeeklyCalendarView 
+                 events={events} 
+                 initialDate={selectedDate}
+                 onWeekChange={handleWeekChangeFromWeeklyView}
+                 // onEventClick={(event) => console.log("Event clicked:", event)} // Example handler
+               />
+            )}
+            
+            {selectedDate && viewMode === 'month' && ( // Only show daily event list in month view
               <Card className="shadow-md">
                 <CardHeader>
                   <div className="flex justify-between items-center">
@@ -156,7 +189,7 @@ export default function EmojiPlannerPage() {
             )}
           </div>
 
-          <div className="space-y-6 lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto"> {/* Sticky sidebar for summary */}
+          <div className="space-y-6 lg:sticky lg:top-[calc(8rem+2.5rem)] lg:h-[calc(100vh-10rem-2.5rem)] lg:overflow-y-auto">
             <Button onClick={() => handleOpenAddEventDialog(selectedDate)} className="w-full md:hidden flex items-center justify-center gap-2 py-3 text-base">
               <PlusCircle className="h-5 w-5" /> Add New Event
             </Button>
@@ -174,3 +207,4 @@ export default function EmojiPlannerPage() {
     </div>
   );
 }
+
