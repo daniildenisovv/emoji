@@ -6,3 +6,5 @@ export interface CalendarEvent {
   hours: number;
   description?: string;
 }
+
+export type CalendarDisplayMode = 'day' | 'week' | 'month';
