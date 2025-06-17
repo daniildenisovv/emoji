@@ -3,48 +3,47 @@
 
 import { useState } from "react";
 import type { CalendarEvent, CalendarDisplayMode } from "@/lib/types";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EMOJI_OPTIONS } from "@/lib/emojis";
 
 interface EmojiSummaryProps {
   events: CalendarEvent[];
+  selectedDate: Date | undefined;
 }
 
 interface EmojiHourSummaryItem {
   hours: number;
-  label: string; // Full label like "💻 Work"
+  label: string; 
 }
 interface EmojiHourSummary {
   [emoji: string]: EmojiHourSummaryItem;
 }
 
-export function EmojiSummary({ events }: EmojiSummaryProps) {
+export function EmojiSummary({ events, selectedDate }: EmojiSummaryProps) {
  const [view, setView] = useState<CalendarDisplayMode>("week");
 
-  const filterEventsByView = (currentEvents: CalendarEvent[], currentView: CalendarDisplayMode): CalendarEvent[] => {
-    const now = new Date();
+  const filterEventsByView = (currentEvents: CalendarEvent[], currentView: CalendarDisplayMode, referenceDate: Date): CalendarEvent[] => {
     let startOfPeriod: Date;
     let endOfPeriod: Date;
 
     switch (currentView) {
       case "day":
-        startOfPeriod = startOfDay(now);
-        endOfPeriod = endOfDay(now);
+        startOfPeriod = startOfDay(referenceDate);
+        endOfPeriod = endOfDay(referenceDate);
         break;
       case "week":
-        startOfPeriod = startOfWeek(now, { weekStartsOn: 1 }); 
-        endOfPeriod = endOfWeek(now, { weekStartsOn: 1 }); 
+        startOfPeriod = startOfWeek(referenceDate, { weekStartsOn: 1 }); 
+        endOfPeriod = endOfWeek(referenceDate, { weekStartsOn: 1 }); 
         break;
       case "month":
-        startOfPeriod = startOfMonth(now);
-        endOfPeriod = endOfMonth(now);
+        startOfPeriod = startOfMonth(referenceDate);
+        endOfPeriod = endOfMonth(referenceDate);
         break;
       default:
-        // If view is somehow invalid, default to showing all events for the current week to be safe
-        startOfPeriod = startOfWeek(now, { weekStartsOn: 1 });
-        endOfPeriod = endOfWeek(now, { weekStartsOn: 1 });
+        startOfPeriod = startOfWeek(referenceDate, { weekStartsOn: 1 });
+        endOfPeriod = endOfWeek(referenceDate, { weekStartsOn: 1 });
     }
 
     return currentEvents.filter(event => {
@@ -53,7 +52,8 @@ export function EmojiSummary({ events }: EmojiSummaryProps) {
     });
   };
 
-  const filteredEvents = filterEventsByView(events, view);
+  const effectiveDate = selectedDate || new Date();
+  const filteredEvents = filterEventsByView(events, view, effectiveDate);
 
   const emojiSummaryData = filteredEvents.reduce<EmojiHourSummary>((acc, event) => {
     const emojiKey = event.emoji;
@@ -70,6 +70,25 @@ export function EmojiSummary({ events }: EmojiSummaryProps) {
   }, {});
 
   const totalHours = filteredEvents.reduce((sum, event) => sum + event.hours, 0);
+  
+  const getPeriodString = (currentView: CalendarDisplayMode, refDate: Date): string => {
+    switch (currentView) {
+      case "day":
+        return `for ${format(refDate, 'PPP')}`;
+      case "week":
+        const start = startOfWeek(refDate, { weekStartsOn: 1 });
+        const end = endOfWeek(refDate, { weekStartsOn: 1 });
+        if (format(start, 'MMM') === format(end, 'MMM')) {
+          return `for week of ${format(start, 'MMM d')} - ${format(end, 'd, yyyy')}`;
+        }
+        return `for week of ${format(start, 'MMM d')} - ${format(end, 'MMM d, yyyy')}`;
+      case "month":
+        return `for ${format(refDate, 'MMMM yyyy')}`;
+      default:
+        return "";
+    }
+  };
+
 
   return (
     <Card>
@@ -87,15 +106,15 @@ export function EmojiSummary({ events }: EmojiSummaryProps) {
             </SelectContent>
           </Select>
         </div>
-        <CardDescription>{`Total scheduled hours for the current ${view}: ${totalHours.toFixed(1)} hrs`}</CardDescription>
+        <CardDescription>{`Total hours ${getPeriodString(view, effectiveDate)}: ${totalHours.toFixed(1)} hrs`}</CardDescription>
       </CardHeader>
       <CardContent>
         {filteredEvents.length === 0 ? (
-          <p className="text-muted-foreground text-center py-4">No events scheduled for this {view}.</p>
+          <p className="text-muted-foreground text-center py-4">No events scheduled for this {view} {getPeriodString(view, effectiveDate).replace('for ', '')}.</p>
         ) : (
           <div className="space-y-2 pt-2">
             {Object.entries(emojiSummaryData)
-              .sort(([, a], [, b]) => b.hours - a.hours) // Sort by hours descending
+              .sort(([, a], [, b]) => b.hours - a.hours) 
               .map(([emoji, data]) => (
               <div key={emoji} className="flex items-center justify-between text-sm py-1 border-b border-border/50 last:border-b-0">
                 <div className="flex items-center gap-2">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,7 +18,7 @@ const EVENTS_STORAGE_KEY = 'emoji-planner-events';
 
 export default function EmojiPlannerPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [selectedDateState, setSelectedDateState] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isAddEventDialogOpen, setIsAddEventDialogOpen] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
@@ -76,21 +77,19 @@ export default function EmojiPlannerPage() {
   }, [toast]);
 
   const handleDateSelectForCalendar = useCallback((date: Date | undefined) => {
-    setSelectedDateState(date);
-    // Optionally open dialog immediately: setIsAddEventDialogOpen(true);
+    setSelectedDate(date);
   }, []);
   
   const handleOpenAddEventDialog = (date?: Date) => {
-    setSelectedDateState(date || new Date());
+    setSelectedDate(date || new Date());
     setIsAddEventDialogOpen(true);
   };
 
-  const eventsForSelectedDate = selectedDateState && isClient
-    ? events.filter(event => isSameDay(event.date, selectedDateState))
+  const eventsForSelectedDate = selectedDate && isClient
+    ? events.filter(event => isSameDay(event.date, selectedDate))
     : [];
 
   if (!isClient) {
-    // Render a loading state or minimal UI during SSR or before hydration
     return (
       <div className="flex flex-col min-h-screen items-center justify-center bg-background text-foreground">
         <Smile className="h-16 w-16 animate-pulse text-primary" />
@@ -106,7 +105,7 @@ export default function EmojiPlannerPage() {
           <Smile className="h-8 w-8 text-primary mr-2" />
           <h1 className="text-2xl md:text-3xl font-bold">Emoji Planner</h1>
           <div className="ml-auto flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => handleOpenAddEventDialog(selectedDateState)} className="hidden md:inline-flex">
+            <Button variant="ghost" size="sm" onClick={() => handleOpenAddEventDialog(selectedDate)} className="hidden md:inline-flex">
               <PlusCircle className="mr-2 h-4 w-4" /> Add Event
             </Button>
             <ThemeSwitcher />
@@ -123,21 +122,21 @@ export default function EmojiPlannerPage() {
                 <CalendarView 
                   events={events} 
                   onDateSelect={handleDateSelectForCalendar} 
-                  selectedDate={selectedDateState}
-                  onSelectedDateChange={setSelectedDateState}
+                  selectedDate={selectedDate}
+                  onSelectedDateChange={setSelectedDate}
                 />
               </CardContent>
             </Card>
 
-            {selectedDateState && (
+            {selectedDate && (
               <Card className="shadow-md">
                 <CardHeader>
                   <div className="flex justify-between items-center">
                     <div>
-                      <CardTitle className="font-headline text-xl">Events for {format(selectedDateState, 'PPP')}</CardTitle>
+                      <CardTitle className="font-headline text-xl">Events for {format(selectedDate, 'PPP')}</CardTitle>
                       <CardDescription>Manage your events for the selected day.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenAddEventDialog(selectedDateState)}>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenAddEventDialog(selectedDate)}>
                       <PlusCircle className="mr-2 h-4 w-4" /> Add
                     </Button>
                   </div>
@@ -158,10 +157,10 @@ export default function EmojiPlannerPage() {
           </div>
 
           <div className="space-y-6 lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)] lg:overflow-y-auto"> {/* Sticky sidebar for summary */}
-            <Button onClick={() => handleOpenAddEventDialog(selectedDateState)} className="w-full md:hidden flex items-center justify-center gap-2 py-3 text-base">
+            <Button onClick={() => handleOpenAddEventDialog(selectedDate)} className="w-full md:hidden flex items-center justify-center gap-2 py-3 text-base">
               <PlusCircle className="h-5 w-5" /> Add New Event
             </Button>
-            <EmojiSummary events={events} />
+            <EmojiSummary events={events} selectedDate={selectedDate} />
           </div>
         </div>
       </main>
@@ -170,7 +169,7 @@ export default function EmojiPlannerPage() {
         isOpen={isAddEventDialogOpen}
         onOpenChange={setIsAddEventDialogOpen}
         onAddEvent={handleAddEvent}
-        selectedDate={selectedDateState}
+        selectedDate={selectedDate}
       />
     </div>
   );
