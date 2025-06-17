@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -34,13 +35,28 @@ import { EMOJI_OPTIONS } from "@/lib/emojis";
 import { useEffect } from "react";
 import { format } from "date-fns";
 
-
 const eventFormSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Title too long"),
   emoji: z.string().min(1, "Emoji is required"),
-  hours: z.coerce.number().min(0.1, "Hours must be at least 0.1").max(24, "Hours cannot exceed 24"),
   date: z.date(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
   description: z.string().max(500, "Description too long").optional(),
+}).refine(data => {
+  if (!data.date || !data.startTime || !data.endTime) return true; // Validation handled by individual fields
+
+  const startDateTime = new Date(data.date);
+  const [startHours, startMinutes] = data.startTime.split(':').map(Number);
+  startDateTime.setHours(startHours, startMinutes, 0, 0);
+
+  const endDateTime = new Date(data.date);
+  const [endHours, endMinutes] = data.endTime.split(':').map(Number);
+  endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+  return endDateTime.getTime() > startDateTime.getTime();
+}, {
+  message: "End time must be after start time",
+  path: ["endTime"], 
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -63,8 +79,9 @@ export function AddEventForm({
     defaultValues: {
       title: "",
       emoji: EMOJI_OPTIONS[0]?.value || "",
-      hours: 1,
       date: selectedDate || new Date(),
+      startTime: "09:00",
+      endTime: "10:00",
       description: "",
     },
   });
@@ -74,16 +91,38 @@ export function AddEventForm({
       form.reset({
         title: "",
         emoji: EMOJI_OPTIONS[0]?.value || "",
-        hours: 1,
         date: selectedDate,
+        startTime: "09:00",
+        endTime: "10:00",
         description: "",
       });
     }
   }, [selectedDate, form, isOpen]);
 
   function onSubmit(data: EventFormValues) {
-    onAddEvent(data);
-    form.reset(); // Reset form after submission
+    const { date, startTime, endTime, title, emoji, description } = data;
+
+    const startDateTime = new Date(date);
+    const [startHoursNum, startMinutesNum] = startTime.split(':').map(Number);
+    startDateTime.setHours(startHoursNum, startMinutesNum, 0, 0);
+
+    const endDateTime = new Date(date);
+    const [endHoursNum, endMinutesNum] = endTime.split(':').map(Number);
+    endDateTime.setHours(endHoursNum, endMinutesNum, 0, 0);
+
+    const durationMs = endDateTime.getTime() - startDateTime.getTime();
+    const calculatedHours = durationMs / (1000 * 60 * 60);
+
+    onAddEvent({
+      title,
+      emoji,
+      date,
+      startTime,
+      endTime,
+      hours: parseFloat(calculatedHours.toFixed(1)),
+      description,
+    });
+    form.reset(); 
   }
 
   return (
@@ -112,39 +151,52 @@ export function AddEventForm({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="emoji"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Emoji</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an emoji" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {EMOJI_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="emoji"
+                name="startTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Emoji</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an emoji" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {EMOJI_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Start Time</FormLabel>
+                    <FormControl>
+                      <Input type="time" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="hours"
+                name="endTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hours</FormLabel>
+                    <FormLabel>End Time</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.1" placeholder="2.5" {...field} />
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

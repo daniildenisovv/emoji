@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CalendarEvent } from '@/lib/types';
@@ -17,7 +18,10 @@ export function EventItem({ event, onDelete }: EventItemProps) {
         <span className="text-2xl mt-1" aria-hidden="true">{event.emoji}</span>
         <div>
           <p className="font-semibold text-base leading-tight">{event.title}</p>
-          <p className="text-sm text-muted-foreground">{event.hours} hour(s)</p>
+          <p className="text-sm text-muted-foreground">
+            {event.hours.toFixed(1)} hour(s)
+            {event.startTime && event.endTime && ` (${event.startTime} - ${event.endTime})`}
+          </p>
           {event.description && <CardDescription className="text-xs mt-1">{event.description}</CardDescription>}
         </div>
       </div>
