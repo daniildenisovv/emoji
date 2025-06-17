@@ -1,9 +1,10 @@
+
 "use client";
 
 import * as React from "react";
 import { Calendar } from "@/components/ui/calendar";
 import type { CalendarEvent } from "@/lib/types";
-import { DayPicker, type DayContentProps } from 'react-day-picker';
+import { DayPicker, DayContent as RDPDayContent, type DayContentProps } from 'react-day-picker';
 import { isSameDay } from 'date-fns';
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,7 @@ function CustomDayContent(props: DayContentProps) {
   
   return (
     <div className="relative h-full w-full flex flex-col items-center justify-center">
-      <DayPicker.DayContent {...props} />
+      <RDPDayContent {...props} />
       {dayEvents.length > 0 && (
         <div className={cn(
           "absolute -bottom-1.5 md:bottom-0 left-1/2 -translate-x-1/2 flex space-x-px",
