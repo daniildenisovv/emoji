@@ -1,16 +1,26 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { CalendarEvent, CalendarDisplayMode } from "@/lib/types";
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfDay, endOfDay, format } from 'date-fns';
+import { 
+  startOfWeek, endOfWeek, 
+  startOfMonth, endOfMonth, 
+  startOfDay, endOfDay, 
+  format,
+  addDays, subDays,
+  addWeeks, subWeeks,
+  addMonths, subMonths
+} from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { EMOJI_OPTIONS } from "@/lib/emojis";
 
 interface EmojiSummaryProps {
   events: CalendarEvent[];
-  selectedDate: Date | undefined;
+  selectedDate: Date | undefined; // This is the date selected on the main calendar
 }
 
 interface EmojiHourSummaryItem {
@@ -22,7 +32,46 @@ interface EmojiHourSummary {
 }
 
 export function EmojiSummary({ events, selectedDate }: EmojiSummaryProps) {
- const [view, setView] = useState<CalendarDisplayMode>("week");
+  const [view, setView] = useState<CalendarDisplayMode>("week");
+  // summaryDate is the date the summary component is currently focused on.
+  // It's initialized by selectedDate from the main calendar.
+  const [summaryDate, setSummaryDate] = useState<Date>(selectedDate || new Date());
+
+  // Effect to update summaryDate when selectedDate from the main calendar changes.
+  useEffect(() => {
+    setSummaryDate(selectedDate || new Date());
+  }, [selectedDate]);
+
+  // Effect to reset summaryDate to selectedDate when the view (day/week/month) changes.
+  // This ensures that if the user picks e.g. "month" view, it's the month of the main calendar's selectedDate.
+  useEffect(() => {
+    if (selectedDate) {
+      setSummaryDate(selectedDate);
+    }
+  }, [view, selectedDate]);
+
+
+  const handlePreviousPeriod = () => {
+    setSummaryDate(currentSummaryDate => {
+      switch (view) {
+        case "day": return subDays(currentSummaryDate, 1);
+        case "week": return subWeeks(currentSummaryDate, 1);
+        case "month": return subMonths(currentSummaryDate, 1);
+        default: return currentSummaryDate;
+      }
+    });
+  };
+
+  const handleNextPeriod = () => {
+    setSummaryDate(currentSummaryDate => {
+      switch (view) {
+        case "day": return addDays(currentSummaryDate, 1);
+        case "week": return addWeeks(currentSummaryDate, 1);
+        case "month": return addMonths(currentSummaryDate, 1);
+        default: return currentSummaryDate;
+      }
+    });
+  };
 
   const filterEventsByView = (currentEvents: CalendarEvent[], currentView: CalendarDisplayMode, referenceDate: Date): CalendarEvent[] => {
     let startOfPeriod: Date;
@@ -41,7 +90,7 @@ export function EmojiSummary({ events, selectedDate }: EmojiSummaryProps) {
         startOfPeriod = startOfMonth(referenceDate);
         endOfPeriod = endOfMonth(referenceDate);
         break;
-      default:
+      default: // Should not happen with defined types, but good to have a fallback
         startOfPeriod = startOfWeek(referenceDate, { weekStartsOn: 1 });
         endOfPeriod = endOfWeek(referenceDate, { weekStartsOn: 1 });
     }
@@ -52,8 +101,8 @@ export function EmojiSummary({ events, selectedDate }: EmojiSummaryProps) {
     });
   };
 
-  const effectiveDate = selectedDate || new Date();
-  const filteredEvents = filterEventsByView(events, view, effectiveDate);
+  // Use summaryDate for filtering and display
+  const filteredEvents = filterEventsByView(events, view, summaryDate);
 
   const emojiSummaryData = filteredEvents.reduce<EmojiHourSummary>((acc, event) => {
     const emojiKey = event.emoji;
@@ -106,11 +155,21 @@ export function EmojiSummary({ events, selectedDate }: EmojiSummaryProps) {
             </SelectContent>
           </Select>
         </div>
-        <CardDescription>{`Total hours ${getPeriodString(view, effectiveDate)}: ${totalHours.toFixed(1)} hrs`}</CardDescription>
+        <div className="flex items-center justify-between mt-2 space-x-2">
+           <Button variant="outline" size="icon" onClick={handlePreviousPeriod} aria-label="Previous period">
+             <ChevronLeft className="h-4 w-4" />
+           </Button>
+           <CardDescription className="text-center flex-grow whitespace-nowrap overflow-hidden text-ellipsis">
+             {`Total ${totalHours.toFixed(1)} hrs ${getPeriodString(view, summaryDate)}`}
+           </CardDescription>
+           <Button variant="outline" size="icon" onClick={handleNextPeriod} aria-label="Next period">
+             <ChevronRight className="h-4 w-4" />
+           </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {filteredEvents.length === 0 ? (
-          <p className="text-muted-foreground text-center py-4">No events scheduled for this {view} {getPeriodString(view, effectiveDate).replace('for ', '')}.</p>
+          <p className="text-muted-foreground text-center py-4">No events scheduled {getPeriodString(view, summaryDate)}.</p>
         ) : (
           <div className="space-y-2 pt-2">
             {Object.entries(emojiSummaryData)
@@ -130,3 +189,4 @@ export function EmojiSummary({ events, selectedDate }: EmojiSummaryProps) {
     </Card>
   );
 }
+
