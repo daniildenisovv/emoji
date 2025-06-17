@@ -8,12 +8,12 @@ import { CalendarView } from '@/components/emoji-planner/calendar-view';
 import { EmojiSummary } from '@/components/emoji-planner/emoji-summary';
 import { EventItem } from '@/components/emoji-planner/event-item';
 import { ThemeSwitcher } from '@/components/emoji-planner/theme-switcher';
-import { WeeklyCalendarView } from '@/components/emoji-planner/weekly-calendar-view'; // Added
+import { WeeklyCalendarView } from '@/components/emoji-planner/weekly-calendar-view';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Added
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, isSameDay, startOfWeek } from 'date-fns';
-import { PlusCircle, Smile, CalendarDays, CalendarWeek } from 'lucide-react'; // Added icons
+import { PlusCircle, Smile, CalendarDays, CalendarRange } from 'lucide-react'; // Changed CalendarWeek to CalendarRange
 import { useToast } from "@/hooks/use-toast";
 
 const EVENTS_STORAGE_KEY = 'emoji-planner-events';
@@ -131,7 +131,7 @@ export default function EmojiPlannerPage() {
           <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="w-full md:w-auto">
             <TabsList className="grid w-full grid-cols-2 md:w-[200px]">
               <TabsTrigger value="month"><CalendarDays className="mr-1 h-4 w-4" />Month</TabsTrigger>
-              <TabsTrigger value="week"><CalendarWeek className="mr-1 h-4 w-4" />Week</TabsTrigger>
+              <TabsTrigger value="week"><CalendarRange className="mr-1 h-4 w-4" />Week</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -207,4 +207,3 @@ export default function EmojiPlannerPage() {
     </div>
   );
 }
-
