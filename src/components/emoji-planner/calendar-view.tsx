@@ -4,7 +4,7 @@
 import * as React from "react";
 import { Calendar } from "@/components/ui/calendar";
 import type { CalendarEvent } from "@/lib/types";
-import { DayPicker, DayContent as RDPDayContent, type DayContentProps } from 'react-day-picker';
+import { DayContent as RDPDayContent, type DayContentProps } from 'react-day-picker';
 import { isSameDay } from 'date-fns';
 import { addWeeks, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { cn } from "@/lib/utils";
@@ -14,7 +14,10 @@ interface CalendarViewProps {
   onDateSelect: (date: Date | undefined) => void;
   selectedDate?: Date;
   onSelectedDateChange: (date: Date | undefined) => void;
- view: 'day' | 'week' | 'month';
+  // The 'view' prop is defined but not actively used to change the calendar's display range beyond month.
+  // It's used for 'displayedDates' which doesn't directly control the <Calendar> component's range.
+  // For now, we keep it as the error is not related to this.
+  view?: 'day' | 'week' | 'month'; // Default to month if not provided, or handle in parent
 }
 
 function CustomDayContent(props: DayContentProps) {
@@ -46,7 +49,7 @@ function CustomDayContent(props: DayContentProps) {
 }
 
 
-export function CalendarView({ events, onDateSelect, selectedDate, onSelectedDateChange, view }: CalendarViewProps) {
+export function CalendarView({ events, onDateSelect, selectedDate, onSelectedDateChange, view = 'month' }: CalendarViewProps) {
   const [month, setMonth] = React.useState<Date>(selectedDate || new Date());
 
   const displayedDates = React.useMemo(() => {
@@ -68,13 +71,8 @@ export function CalendarView({ events, onDateSelect, selectedDate, onSelectedDat
   }, [selectedDate, view]);
 
   const modifiers = React.useMemo(() => {
-    // Use the eventsForDay modifier to filter events for each day.
-    // This is a more standard way to use react-day-picker modifiers.
-    // The CustomDayContent component will access the events via activeModifiers.eventsForDay.
-
     return {
       eventsForDay: (date: Date) => events.filter(event => isSameDay(date, event.date)),
-      ...modifiersOutput, // This might not be the standard way, eventsForDay is safer
     };
   }, [events]);
   
@@ -87,7 +85,6 @@ export function CalendarView({ events, onDateSelect, selectedDate, onSelectedDat
 
   const handleMonthChange = (newMonth: Date) => {
     setMonth(newMonth);
-    // When changing month in month view, select the first day of the new month
     if (view === 'month') {
       onSelectedDateChange(startOfMonth(newMonth));
     }
@@ -95,15 +92,17 @@ export function CalendarView({ events, onDateSelect, selectedDate, onSelectedDat
 
   return (
     <div className="w-full">
+      {/* This day-specific header is not fully aligned with month view operation,
+          but kept as per original structure. Consider conditional rendering based on 'view'. */}
       {view === 'day' && selectedDate && (
         <div className="text-lg font-semibold text-center mb-4">{selectedDate.toDateString()}</div>
       )}
       <Calendar
-        mode={view === 'month' ? "single" : "single"} // Keep single mode for selection, adjust display range with focus
+        mode="single" // Always single for selection, 'view' prop was not used for this
         selected={selectedDate}
         onSelect={handleDayClick}
-        month={month} // Use state month for calendar navigation
-        onMonthChange={handleMonthChange} // Handle month changes for navigation
+        month={month} 
+        onMonthChange={handleMonthChange} 
         className="p-0 w-full [&_button]:h-10 [&_button]:w-10 md:[&_button]:h-12 md:[&_button]:w-12 [&_td]:h-10 [&_td]:w-10 md:[&_td]:h-14 md:[&_td]:w-14"
         classNames={{
           day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary/90",
@@ -115,7 +114,7 @@ export function CalendarView({ events, onDateSelect, selectedDate, onSelectedDat
         }}
         modifiers={modifiers}
         showOutsideDays
-        fixedWeeks={view === 'month'} // Fixed weeks only for month view
+        fixedWeeks={view === 'month'}
       />
     </div>
   );
